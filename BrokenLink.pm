@@ -6,6 +6,9 @@ which is written in C.
 It runs on top of mod_perl. Its API is:
 http://perl.apache.org/docs/2.0/api/index.html
 
+What is not provided by mod_perl is probably provided by 
+Perl native or some CPAN module.
+
 Examples of mod_perl handlers:
 http://perl.apache.org/docs/2.0/user/handlers/intro.html
 http://modperlbook.org/code/chapters/ch25-next_generation/Book/Eliza2.pm
@@ -27,6 +30,7 @@ File contents:
 =cut
 use POSIX qw/strftime/;
 use IO::Socket::INET;
+use URI::Escape;
 
 
 
@@ -72,7 +76,7 @@ sub now {
 sub test {
   my $string = shift;
   if (MBL_DEBUG_MODE == MBL_TRUE) {
-    print STDERR, "mbltest " . now() . ": " . $string . "\n";
+    print STDERR "mbltest " . now() . ": $string\n";
   }
 }
 
@@ -91,8 +95,8 @@ sub tabletest_row {
   my ($rec, $key, $value) = @_;
 
   test("tabletest_row");
-  test("key: " . $key);
-  test("value: " . $value);
+  test("key: $key");
+  test("value: $value");
 
   return 1; # return 1 so the iteration continues
 }
@@ -147,7 +151,7 @@ sub nf_common_create {
 
   $res{"to"} = defined $to ? $to : "";
 
-  test("status: " . $status . " from: " . $from . " to: " . $to);
+  test("status: $status from: $from to: $to");
   test("nf_common_create return");
 }
 
@@ -208,17 +212,17 @@ sub nf_pack {
   my $time = "";
 
   myi $from = $r->header_in{"Referer"};
-  test("from: " . $from);
+  test("from: $from");
   if ($from == undef || $from eq "") {
     test("Void referer. Can not pack notification.");
     $can = MBL_FALSE;
   }
 
   my $to = $r->unparsed_uri;
-  test("to: " . $to);
+  test("to: $to");
 
   my $status = $r->status;
-  test("status: " . $status);
+  test("status: $status");
 
   if ($can == MBL_TRUE) {
     %notification = nf_create(0, $time, 1, MBL_TRUE, $status, $from, $to);
@@ -226,6 +230,129 @@ sub nf_pack {
 
   test("nf_pack return");
   return \%notification;
+}
+
+=pod
+Alias for uri_escape
+@see http://search.cpan.org/dist/URI/URI/Escape.pm
+=cut
+sub urlencode {
+  my $str = shift;
+
+  return uri_escape($str);
+}
+
+# Alias for uri_unescape
+sub urldecode {
+  my $str = shift;
+
+  return uri_unescape($str);
+}
+
+# @return A URI-like serialization of a notification object
+sub nf_xraw2uri {
+  my $n = shift;
+
+  my $res = MBL_NOTIFY_FILENAME . 
+      "?from=" . urlencode($nf{"from"}) . 
+      "&status=" . $nf{"status"} . 
+      "&to=" . $nf{"to"};
+
+  return $res;
+}
+
+=pod
+Composes a generic HTTP GET request from discrete fields.
+@param uri The resource (tipically a web page) requested
+@param host The host to request to
+@param referer Value for the HTTP Referer field
+@param user_agent Value for the HTTP User-Agent field
+@see http://www.w3.org/Protocols/rfc2616/rfc2616-sec14.htmlç
+=cut
+sub http_get_compose {
+  my ($uri, $host, $referer, $user_agent) = @_;
+  test("http_get_compose");
+
+  my $res = "GET $uri HTTP/1.1" . CRLF_STR . 
+            "Host: $host" . CRLF_STR . 
+            "Referer: $referer" . CRLF_STR .
+            "User-Agent: $user_agent" . CRLF_STR .
+            CRLF_STR;
+
+  test("http_get_compose return");
+  return $res;
+}
+
+=pod
+Converts a notification hash with fields:
+time
+from
+to
+status
+
+To an HTTP request like
+GET MBL_NOTIFY_FILENAME?from=<from>&status=<status>
+Host: <from.hostname>
+Referer: <to>
+User-Agent: MBL_USER_AGENT
+=cut
+sub nf_xraw2req {
+  my $nf = shift;
+
+  my $resource = nf_xraw2uri($nf);
+
+  my $host = APR::URI->parse($nf{"from"})->hostname;
+
+  my $referer = $nf{"to"};
+
+  my $user_agent = MBL_USER_AGENT;
+
+  my $res = http_get_compose($resource, $host, $referer, $user_agent);
+
+  test("nf_xraw2req return");
+  return $res;
+}
+
+=pod
+Transmits notification to referer
+Test case: Access to http://localhost/a_non_existent_page.html
+=cut
+sub nf_tx {
+  my ($r, $nf) = @_;
+  test("nf_tx");
+
+  my $socket ;
+
+  my $parsed_uri = APR::URI->parse($nf{"from"});
+
+  my $referer_hostname = $parsed_uri->hostname;
+  test("referer_hostname: $referer_hostname");
+
+  my $referer_port = $parsed_uri->port;
+  test("referer_port:  $referer_port");
+
+  if (socket_open($r, $socket, $referer_hostname, $referer_port) == MBL_FALSE) {
+    test("nf_tx return with error at socket_open");
+    return MBL_FALSE;
+  }
+
+  my $req_header = nf_xraw2req($nf);
+
+  my $len = length $req_header;
+
+  my $ret = $socket->send($req_header);
+  test("socket->send returned: $ret");
+
+  test("**** SENDING NOTIFICATION ****");
+  if ($ret == 0) { # assuming 0 is send error
+    test("nf_tx sent $sent_bytes instead of $len");
+    return MBL_FALSE;
+  }
+
+  $socket->close();
+
+  test("nf_tx return");
+  return MBL_TRUE;
 }
 
 
