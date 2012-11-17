@@ -3,11 +3,13 @@ This is going to be a Perl port of mod_brokenlink
 http://code.google.com/p/modbrokenlink/
 which is written in C.
 
-It runs on top of mod_perl. Its API is:
+It runs on top of mod_perl, whose API is:
 http://perl.apache.org/docs/2.0/api/index.html
 
-What is not provided by mod_perl is probably provided by 
+What is not provided by mod_perl API should be provided by 
 Perl native or some CPAN module.
+
+Technically, is a mod_perl handler.
 
 Examples of mod_perl handlers:
 http://perl.apache.org/docs/2.0/user/handlers/intro.html
@@ -16,7 +18,7 @@ http://cpan-search.sourceforge.net/Apache2/DocServer.pm.html
 https://svn.apache.org/repos/asf/spamassassin/branches/check_plugin/spamd-apache2/lib/Mail/SpamAssassin/Spamd/Apache2/Config.pm
 http://perl.apache.org/docs/2.0/user/handlers/http.html#PerlLogHandler
 
-File contents:
+This file contains:
 1, Includes
 2. Constants
 3. Testing helpers
@@ -31,6 +33,13 @@ File contents:
 use POSIX qw/strftime/;
 use IO::Socket::INET;
 use URI::Escape;
+use Apache2::Module ();
+use Apache2::RequestRec ();
+use Apache2::ServerRec ();
+use APR::Const ();
+use APR::Socket ();
+use APR::Table ();
+use APR::URI ();
 
 
 
@@ -355,4 +364,71 @@ sub nf_tx {
   return MBL_TRUE;
 }
 
+=pod
+@param uri URI
+@return Whether the URI host is the localhost
+=cut
+sub is_it_me {
+  my ($r, $uri) = @_;
+  test("is_it_me");
+
+  my $res;
+
+  if ($uri eq "") {
+    test("Asked host is \"\"");
+    return MBL_FALSE;
+  }
+
+  my $localhostname = $r->server()->server_hostname();
+
+  my $parsed_uri = APR::URI->parse($uri);
+
+  my $uri_hostname = $parsed_uri->hostname;
+
+  test("localhostname: $localhostname");
+  test("uri_hostname: $uri_hostname");
+
+  if ($uri_hostname == undef) {
+    test("No host referer explicited; assuming localhost.");
+    return MBL_TRUE;
+  }
+
+  if ($localhostname eq $uri_hostname) {
+    test("Asked host is localhost");
+    return MBL_TRUE;
+  }
+
+  if ("localhost" eq $uri_hostname) {
+    test("Asked host is localhost");
+    return MBL_TRUE;
+  }
+
+  if ("127.0.0.1" eq $uri_hostname) {
+    test("Asked host is localhost");
+    return MBL_TRUE;
+  }
+
+  test("Asked host is NOT localhost");
+  return MBL_FALSE;
+}
+
+# @return Whethe rthe target of the ongoing request is potentially notifiable or not.
+sub able_to {
+  my ($r, $to) = @_;
+  test("able_to");
+
+  my $res;
+
+  my $to_filename = substr $to, 0, length MBL_NOTIFY_FILENAME;
+
+  if ($to_filename eq MBL_NOTIFY_FILENAME) {
+    $res = MBL_FALSE;
+  } else {
+    $res = MBL_TRUE;
+  }
+
+  test("res: $res");
+  test("able_to return");
+  return $res;
+}
 
