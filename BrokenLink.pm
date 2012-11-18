@@ -227,7 +227,7 @@ Creates a notification object from the data of the current request
 sub nf_pack {
   my ($r) = @_;
 
-  my %notification;
+  my $notification;
 
   my $time = "";
 
@@ -245,10 +245,10 @@ sub nf_pack {
   my $status = $r->status;
   test("status: $status");
 
-  %notification = nf_create(0, $time, 1, MBL_TRUE, $status, $from, $to);
+  $notification = nf_create(0, $time, 1, MBL_TRUE, $status, $from, $to);
 
   test("nf_pack return");
-  return \%notification;
+  return $notification;
 }
 
 =pod
