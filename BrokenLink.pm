@@ -70,7 +70,7 @@ use constant {
 
 # debugging
 use constant {
-  MBL_DEBUG_MODE => MBL_FALSE
+  MBL_DEBUG_MODE => MBL_TRUE
 };
 
 # notification sending
@@ -228,7 +228,6 @@ sub nf_pack {
   my ($r) = @_;
 
   my %notification;
-  my $can = MBL_TRUE;
 
   my $time = "";
 
@@ -236,7 +235,7 @@ sub nf_pack {
 
   if (!defined $from || $from eq "") {
     test("Void referer. Can not pack notification.");
-    $can = MBL_FALSE;
+    return undef;
   }
   test("from: $from");
 
@@ -246,9 +245,7 @@ sub nf_pack {
   my $status = $r->status;
   test("status: $status");
 
-  if ($can == MBL_TRUE) {
-    %notification = nf_create(0, $time, 1, MBL_TRUE, $status, $from, $to);
-  }
+  %notification = nf_create(0, $time, 1, MBL_TRUE, $status, $from, $to);
 
   test("nf_pack return");
   return \%notification;
@@ -542,8 +539,10 @@ sub handler {
   test("logging --------------------------------");
 
   my $n = nf_pack($r);
-  
-  nfy_if_needed($r, $n);
+
+  if (defined $n) {  
+    nfy_if_needed($r, $n);
+  }
   
   test("logging return");
   return Apache2::Const::OK;
