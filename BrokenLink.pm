@@ -17,6 +17,7 @@ http://modperlbook.org/code/chapters/ch25-next_generation/Book/Eliza2.pm
 http://cpan-search.sourceforge.net/Apache2/DocServer.pm.html
 https://svn.apache.org/repos/asf/spamassassin/branches/check_plugin/spamd-apache2/lib/Mail/SpamAssassin/Spamd/Apache2/Config.pm
 http://perl.apache.org/docs/2.0/user/handlers/http.html#PerlLogHandler
+http://search.cpan.org/~stas/DocSet-0.19/examples/site/src/start/tips/logging.pod
 
 This file contains:
 1, Includes
@@ -24,6 +25,10 @@ This file contains:
 3. Testing helpers
 4. The meat
 =cut
+
+
+
+package BrokenLink;
 
 
 
@@ -61,21 +66,21 @@ use constant {
   TIME_FORMAT_ISO => "%Y-%m-%dT%H:%M:%S%z",
   MODULE => "mod_brokenlink",
   URISIZE => 1024
-}
+};
 
 # debugging
 use constant {
   MBL_DEBUG_MODE => MBL_FALSE
-}
+};
 
 # notification sending
 use constant {
   MBL_NOTIFY_FILENAME => "/mod_brokenlink_notify",
   MBL_NOTIFY_REFLEXIVE => MBL_FALSE,
   MBL_USER_AGENT => "Apache mod_brokenlink"
-}
+};
 
-use Apache::Const -compile => qw(OK);
+use Apache2::Const -compile => qw(OK);
 
 
 
@@ -100,10 +105,10 @@ sub test {
 sub nftest {
   my $nf = shift;
   test("nftest");
-  test($nf{"time"});
-  test($nf{"from"});
-  test($nf{"to"});
-  test($nf{"status"});
+  test($$nf{"time"});
+  test($$nf{"from"});
+  test($$nf{"to"});
+  test($$nf{"status"});
 }
 
 # Prints one row of an APR table to the STDERR.
@@ -155,17 +160,17 @@ sub nf_common_create {
   my ($res, $id, $time, $qtt, $status, $from, $to) = @_;
   test("nf_common_create");
 
-  $res{"id"} = $id;
+  $$res{"id"} = $id;
 
-  $res{"time"} = defined $time ? $time : "";
+  $$res{"time"} = defined $time ? $time : "";
   
-  $res{"qtt"} = $qtt;
+  $$res{"qtt"} = $qtt;
 
-  $res{"status"} = $status;
+  $$res{"status"} = $status;
 
-  $res{"from"} = defined $from ? $from : "";
+  $$res{"from"} = defined $from ? $from : "";
 
-  $res{"to"} = defined $to ? $to : "";
+  $$res{"to"} = defined $to ? $to : "";
 
   test("status: $status from: $from to: $to");
   test("nf_common_create return");
@@ -227,12 +232,13 @@ sub nf_pack {
 
   my $time = "";
 
-  myi $from = $r->header_in{"Referer"};
-  test("from: $from");
-  if ($from == undef || $from eq "") {
+  my $from = $r->headers_in->get("Referer");
+
+  if (!defined $from || $from eq "") {
     test("Void referer. Can not pack notification.");
     $can = MBL_FALSE;
   }
+  test("from: $from");
 
   my $to = $r->unparsed_uri;
   test("to: $to");
@@ -267,12 +273,12 @@ sub urldecode {
 
 # @return A URI-like serialization of a notification object
 sub nf_xraw2uri {
-  my $n = shift;
+  my $nf = shift;
 
   my $res = MBL_NOTIFY_FILENAME . 
-      "?from=" . urlencode($nf{"from"}) . 
-      "&status=" . $nf{"status"} . 
-      "&to=" . $nf{"to"};
+      "?from=" . urlencode($$nf{"from"}) . 
+      "&status=" . $$nf{"status"} . 
+      "&to=" . $$nf{"to"};
 
   return $res;
 }
@@ -317,9 +323,10 @@ sub nf_xraw2req {
 
   my $resource = nf_xraw2uri($nf);
 
-  my $host = APR::URI->parse($nf{"from"})->hostname;
+  my $host = APR::URI->parse($$nf{from})->hostname; 
+  # TODO test if it works without quotes, and do the same in the whole code
 
-  my $referer = $nf{"to"};
+  my $referer = $$nf{"to"};
 
   my $user_agent = MBL_USER_AGENT;
 
@@ -339,7 +346,7 @@ sub nf_tx {
 
   my $socket ;
 
-  my $parsed_uri = APR::URI->parse($nf{"from"});
+  my $parsed_uri = APR::URI->parse($$nf{"from"});
 
   my $referer_hostname = $parsed_uri->hostname;
   test("referer_hostname: $referer_hostname");
@@ -361,7 +368,7 @@ sub nf_tx {
 
   test("**** SENDING NOTIFICATION ****");
   if ($ret == 0) { # assuming 0 is send error
-    test("nf_tx sent $sent_bytes instead of $len");
+    test("socket->send returned an error.");
     return MBL_FALSE;
   }
 
@@ -395,7 +402,7 @@ sub is_it_me {
   test("localhostname: $localhostname");
   test("uri_hostname: $uri_hostname");
 
-  if ($uri_hostname == undef) {
+  if (!defined $uri_hostname) {
     test("No host referer explicited; assuming localhost.");
     return MBL_TRUE;
   }
@@ -458,16 +465,16 @@ sub able_status {
 
   my $res;
 
-  $cfg = config_get($r->server());
+  my $cfg = config_get($r->server());
 
-  $t = $cfg{"notifiable_status"};
+  my $t = $$cfg{"notifiable_status"};
 
   # I totally don't know what I'm doing
   if (length $t == 0) {
-    $t = $cfg{"notifiable_status_default"};
+    $t = $$cfg{"notifiable_status_default"};
   }
 
-  if ($t->get($status) == undef) {
+  if (!defined $t->get($status)) {
     $res = MBL_TRUE;
   } else {
     $res = MBL_FALSE;
@@ -485,7 +492,7 @@ sub able_from {
   
   my $res;
 
-  if ($from == undef || $from eq "") {
+  if (!defined $from || $from eq "") {
     test("From was null or \"\"");
     return MBL_FALSE;
   }
@@ -504,9 +511,11 @@ sub nf_txable {
   my ($r, $nf) = @_;
   test("nf_txable");
 
-  if (able_from($r, $nf{"from"}) == MBL_TRUE &&
-      able_status($r, $nf{"status"}) == MBL_TRUE &&
-      able_to($r, $nf{"to"}) == MBL_TRUE) {
+  my $res;
+
+  if (able_from($r, $$nf{"from"}) == MBL_TRUE &&
+      able_status($r, $$nf{"status"}) == MBL_TRUE &&
+      able_to($r, $$nf{"to"}) == MBL_TRUE) {
     $res = MBL_TRUE
   } else {
     $res = MBL_FALSE;
@@ -528,7 +537,7 @@ sub nfy_if_needed {
   test("nfy_if_needed return");
 }
 
-sub logging {
+sub handler {
   my $r = shift;
   test("logging --------------------------------");
 
@@ -539,4 +548,4 @@ sub logging {
   test("logging return");
   return Apache2::Const::OK;
 }
-
+1;
