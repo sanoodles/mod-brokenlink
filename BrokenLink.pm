@@ -27,6 +27,11 @@ This file contains:
 
 
 
+use strict;
+use warnings;
+
+
+
 =pod
 1. Includes
 =cut
@@ -69,6 +74,8 @@ use constant {
   MBL_NOTIFY_REFLEXIVE => MBL_FALSE,
   MBL_USER_AGENT => "Apache mod_brokenlink"
 }
+
+use Apache::Const -compile => qw(OK);
 
 
 
@@ -412,7 +419,13 @@ sub is_it_me {
   return MBL_FALSE;
 }
 
-# @return Whethe rthe target of the ongoing request is potentially notifiable or not.
+=pod
+@return Whether the target of the ongoing request is potentially notifiable or not.
+Since the notifications are performed as an ordinary access to a non-existent
+file, receiving a notification would cause in turn to send back a 
+notification and a sweet-dude dialog would start.
+http://www.imdb.com/title/tt0242423/quotes#qt0397841
+=cut
 sub able_to {
   my ($r, $to) = @_;
   test("able_to");
@@ -430,5 +443,100 @@ sub able_to {
   test("res: $res");
   test("able_to return");
   return $res;
+}
+
+=pod
+@return Whether the status of the ongoing request is potentially notifiable or not.
+If notifiable status list is empty
+  It uses the default notifiable status list
+Else
+  It uses the list ones
+=cut
+sub able_status {
+  my ($r, $status) = @_;
+  test("able_status");
+
+  my $res;
+
+  $cfg = config_get($r->server());
+
+  $t = $cfg{"notifiable_status"};
+
+  # I totally don't know what I'm doing
+  if (length $t == 0) {
+    $t = $cfg{"notifiable_status_default"};
+  }
+
+  if ($t->get($status) == undef) {
+    $res = MBL_TRUE;
+  } else {
+    $res = MBL_FALSE;
+  }
+
+  test("res: $res");
+  test("able_status return");
+  return $res;
+}
+
+# @return Whether the referer of the ongoing request is potentially notifiable or not.
+sub able_from {
+  my ($r, $from) = @_;
+  test("able_from");
+  
+  my $res;
+
+  if ($from == undef || $from eq "") {
+    test("From was null or \"\"");
+    return MBL_FALSE;
+  }
+
+  if (MBL_NOTIFY_REFLEXIVE == MBL_FALSE && is_it_me($r, $from)) {
+    test("Reflexive notification sending is NOT potentially notifiable");
+    return MBL_FALSE;
+  }
+
+  test("able_from return");
+  return MBL_TRUE;
+}
+
+# @return Whether the ongoing request is nofitiable or not.
+sub nf_txable {
+  my ($r, $nf) = @_;
+  test("nf_txable");
+
+  if (able_from($r, $nf{"from"}) == MBL_TRUE &&
+      able_status($r, $nf{"status"}) == MBL_TRUE &&
+      able_to($r, $nf{"to"}) == MBL_TRUE) {
+    $res = MBL_TRUE
+  } else {
+    $res = MBL_FALSE;
+  }
+
+  test("res: $res");
+  test("nf_txable return");
+  return $res;
+}
+
+sub nfy_if_needed {
+  my ($r, $n) = @_;
+  test("nfy_if_needed");
+
+  if (nf_txable($r, $n) == MBL_TRUE) {
+    nf_tx($r, $n);
+  }
+
+  test("nfy_if_needed return");
+}
+
+sub logging {
+  my $r = shift;
+  test("logging --------------------------------");
+
+  my $n = nf_pack($r);
+  
+  nfy_if_needed($r, $n);
+  
+  test("logging return");
+  return Apache2::Const::OK;
 }
 
