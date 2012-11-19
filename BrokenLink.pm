@@ -392,9 +392,9 @@ sub is_it_me {
 
   my $localhostname = $r->server()->server_hostname();
 
-  my $parsed_uri = APR::URI->parse($uri);
+  # my $parsed_uri = APR::URI->parse("uleleleale", $r->pool, $uri);
 
-  my $uri_hostname = $parsed_uri->hostname;
+  my $uri_hostname = $r->hostname;
 
   test("localhostname: $localhostname");
   test("uri_hostname: $uri_hostname");
@@ -536,7 +536,7 @@ sub nfy_if_needed {
 
 sub handler {
   my $r = shift;
-  test("logging --------------------------------");
+  test("handler --------------------------------");
 
   my $n = nf_pack($r);
 
@@ -544,7 +544,7 @@ sub handler {
     nfy_if_needed($r, $n);
   }
   
-  test("logging return");
+  test("handler return");
   return Apache2::Const::OK;
 }
 1;
