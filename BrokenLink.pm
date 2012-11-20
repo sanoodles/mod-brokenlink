@@ -141,17 +141,7 @@ sub tabletest {
 # @return Module config.
 sub config_get {
   my $r = shift;
-
-  # Calling as Apache2::Module->get_config(__PACKAGE__, $r->server);
-  #     crashes. I don't know yet whether it is necessary to pass
-  #     that first parameter in order for the module to work,
-  #     nor the pros and cons.
-  # my $s = Apache2::ServerUtil->server;
-  # test("ref(s): " . ref($s));
-  # test("ref(r->server): " . ref($r->server));
-  
-  my $cfg = Apache2::Module->get_config($r->server);
-
+  my $cfg = Apache2::Module::get_config(__PACKAGE__, $r->server);
   return $cfg;
 }
 
