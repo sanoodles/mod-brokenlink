@@ -18,6 +18,7 @@ http://cpan-search.sourceforge.net/Apache2/DocServer.pm.html
 https://svn.apache.org/repos/asf/spamassassin/branches/check_plugin/spamd-apache2/lib/Mail/SpamAssassin/Spamd/Apache2/Config.pm
 http://perl.apache.org/docs/2.0/user/handlers/http.html#PerlLogHandler
 http://search.cpan.org/~stas/DocSet-0.19/examples/site/src/start/tips/logging.pod
+http://perl.apache.org/docs/2.0/user/config/custom.html#Creating_and_Using_Custom_Configuration_Directives
 
 This file contains:
 1, Includes
@@ -42,14 +43,16 @@ use warnings;
 =cut
 use POSIX qw/strftime/;
 use IO::Socket::INET;
-use URI::Escape;
+use URI;
+use Apache2::CmdParms ();
+use Apache2::Directive ();
 use Apache2::Module ();
 use Apache2::RequestRec ();
 use Apache2::ServerRec ();
+use Apache2::ServerUtil ();
 use APR::Const ();
 use APR::Socket ();
 use APR::Table ();
-use APR::URI ();
 
 
 
@@ -106,8 +109,8 @@ sub nftest {
   my $nf = shift;
   test("nftest");
   test($$nf{"time"});
-  test($$nf{"from"});
-  test($$nf{"to"});
+  test($$nf{"from"}->as_string);
+  test($$nf{"to"}->as_string);
   test($$nf{"status"});
 }
 
@@ -138,10 +141,16 @@ sub tabletest {
 # @return Module config.
 sub config_get {
   my $r = shift;
+
+  # Calling as Apache2::Module->get_config(__PACKAGE__, $r->server);
+  #     crashes. I don't know yet whether it is necessary to pass
+  #     that first parameter in order for the module to work,
+  #     nor the pros and cons.
+  # my $s = Apache2::ServerUtil->server;
+  # test("ref(s): " . ref($s));
+  # test("ref(r->server): " . ref($r->server));
   
-  my $cfg = Apache2::Module->get_config(__PACKAGE__, 
-      $r->server, 
-      $r->per_dir_config);
+  my $cfg = Apache2::Module->get_config($r->server);
 
   return $cfg;
 }
@@ -172,7 +181,7 @@ sub nf_common_create {
 
   $$res{"to"} = defined $to ? $to : "";
 
-  test("status: $status from: $from to: $to");
+  test("status: $status from: " . $from->as_string . " to: " . $to->as_string);
   test("nf_common_create return");
 }
 
@@ -231,16 +240,16 @@ sub nf_pack {
 
   my $time = "";
 
-  my $from = $r->headers_in->get("Referer");
+  my $from = URI->new($r->headers_in->get("Referer"));
 
   if (!defined $from || $from eq "") {
     test("Void referer. Can not pack notification.");
     return undef;
   }
-  test("from: $from");
+  test("from: " . $from->as_string);
 
-  my $to = $r->unparsed_uri;
-  test("to: $to");
+  my $to = URI->new($r->unparsed_uri);
+  test("to: " . $to->as_string);
 
   my $status = $r->status;
   test("status: $status");
@@ -273,9 +282,9 @@ sub nf_xraw2uri {
   my $nf = shift;
 
   my $res = MBL_NOTIFY_FILENAME . 
-      "?from=" . urlencode($$nf{"from"}) . 
+      "?from=" . urlencode($$nf{"from"}->as_string) . 
       "&status=" . $$nf{"status"} . 
-      "&to=" . $$nf{"to"};
+      "&to=" . urlencode($$nf{"to"}->as_string);
 
   return $res;
 }
@@ -320,10 +329,10 @@ sub nf_xraw2req {
 
   my $resource = nf_xraw2uri($nf);
 
-  my $host = APR::URI->parse($$nf{from})->hostname; 
+  my $host = $$nf{from}->host;
   # TODO test if it works without quotes, and do the same in the whole code
 
-  my $referer = $$nf{"to"};
+  my $referer = $$nf{"to"}->as_string;
 
   my $user_agent = MBL_USER_AGENT;
 
@@ -343,12 +352,10 @@ sub nf_tx {
 
   my $socket ;
 
-  my $parsed_uri = APR::URI->parse($$nf{"from"});
-
-  my $referer_hostname = $parsed_uri->hostname;
+  my $referer_hostname = $$nf{from}->host;
   test("referer_hostname: $referer_hostname");
 
-  my $referer_port = $parsed_uri->port;
+  my $referer_port = $$nf{from}->port;
   test("referer_port:  $referer_port");
 
   if (socket_open($r, $socket, $referer_hostname, $referer_port) == MBL_FALSE) {
@@ -376,50 +383,52 @@ sub nf_tx {
 }
 
 =pod
-@param uri URI
-@return Whether the URI host is the localhost
+@param referer_uri {URI object} URI of the referer.
+@return {MBL_BOOL} Whether the referer_uri belongs to the localhost.
+The current design makes no distinction between:
+* Servers under the same hostname.
+* "localhost" and the current server.
+* "127.0.0.1" and the current server.
 =cut
 sub is_it_me {
-  my ($r, $uri) = @_;
+  my ($r, $referer_uri) = @_;
   test("is_it_me");
 
   my $res;
 
-  if ($uri eq "") {
-    test("Asked host is \"\"");
+  if ($referer_uri->as_string eq "") {
+    test("Subject host is \"\"");
     return MBL_FALSE;
   }
 
   my $localhostname = $r->server()->server_hostname();
 
-  # my $parsed_uri = APR::URI->parse("uleleleale", $r->pool, $uri);
-
-  my $uri_hostname = $r->hostname;
+  my $referer_hostname = $referer_uri->host;
 
   test("localhostname: $localhostname");
-  test("uri_hostname: $uri_hostname");
+  test("referer_hostname: $referer_hostname");
 
-  if (!defined $uri_hostname) {
-    test("No host referer explicited; assuming localhost.");
+  if (!defined $referer_hostname) {
+    test("No referer explicited; assuming localhost.");
     return MBL_TRUE;
   }
 
-  if ($localhostname eq $uri_hostname) {
-    test("Asked host is localhost");
+  if ($localhostname eq $referer_hostname) {
+    test("Referer host is localhost");
     return MBL_TRUE;
   }
 
-  if ("localhost" eq $uri_hostname) {
-    test("Asked host is localhost");
+  if ("localhost" eq $referer_hostname) {
+    test("Referer host is localhost");
     return MBL_TRUE;
   }
 
-  if ("127.0.0.1" eq $uri_hostname) {
-    test("Asked host is localhost");
+  if ("127.0.0.1" eq $referer_hostname) {
+    test("Referer host is localhost");
     return MBL_TRUE;
   }
 
-  test("Asked host is NOT localhost");
+  test("Referer host is NOT localhost");
   return MBL_FALSE;
 }
 
@@ -462,7 +471,7 @@ sub able_status {
 
   my $res;
 
-  my $cfg = config_get($r->server());
+  my $cfg = config_get($r);
 
   my $t = $$cfg{"notifiable_status"};
 
@@ -471,7 +480,7 @@ sub able_status {
     $t = $$cfg{"notifiable_status_default"};
   }
 
-  if (!defined $t->get($status)) {
+  if (!defined $$t->get($status)) {
     $res = MBL_TRUE;
   } else {
     $res = MBL_FALSE;
