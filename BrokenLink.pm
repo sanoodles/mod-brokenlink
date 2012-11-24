@@ -22,10 +22,11 @@ http://perl.apache.org/docs/2.0/user/config/custom.html#Creating_and_Using_Custo
 https://metacpan.org/search?q=Apache%3A%3A
 
 This file contains:
-1, Includes
+1. Includes
 2. Constants
-3. Testing helpers
-4. The meat
+3. Directives
+4. Testing helpers
+5. The meat
 =cut
 
 
@@ -46,6 +47,7 @@ use POSIX qw/strftime/;
 use IO::Socket::INET;
 use URI;
 use Apache2::CmdParms ();
+use Apache2::Const -compile => qw(OK RSRC_CONF);
 use Apache2::Directive ();
 use Apache2::Module ();
 use Apache2::RequestRec ();
@@ -84,12 +86,35 @@ use constant {
   MBL_USER_AGENT => "Apache mod_brokenlink"
 };
 
-use Apache2::Const -compile => qw(OK);
+
+
+=pod
+3. Directives
+=cut
+
+# @see http://perl.apache.org/docs/2.0/user/config/custom.html#Directive_Scope_Definition_Constants
+my @directives = (
+  {
+    name => "NotifiableStatus",
+    # req_override => Apache2::Const::RSRC_CONF,
+  },
+);
+Apache2::Module::add(__PACKAGE__, \@directives);
+
+# @see perl.apache.org/docs/2.0/user/config/custom.html#C_args_how_
+sub NotifiableStatus {
+  my ($self, $parms, $arg) = @_;
+  test("NotifiableStatus ini");
+  
+  test($arg);  
+
+  test("NotifiableStatus end"); 
+}
 
 
 
 =pod
-3. Testing helpers
+4. Testing helpers
 =cut
 
 # @return Current datetime in TIME_FORMAT. eg: "2009-06-15 19:58:13".
@@ -136,7 +161,7 @@ sub tabletest {
 
 
 =pod
-4. The meat
+5. The meat
 =cut
 
 # @return Module config.
@@ -457,10 +482,10 @@ sub able_to {
 
 =pod
 @return Whether the status of the ongoing request is potentially notifiable or not.
-If notifiable status list is empty
-  It uses the default notifiable status list
+If there is not a user defined list of notifiable statuses
+  It uses defaults
 Else
-  It uses the list ones
+  It uses the user list
 =cut
 sub able_status {
   my ($r, $status) = @_;
@@ -470,11 +495,11 @@ sub able_status {
 
   my $cfg = config_get($r);
 
-  my $t = $$cfg{"notifiable_status"};
+  my $t = $$cfg{"notifiable_statuses"};
 
-  # I totally don't know what I'm doing
+  # I totally
   if (length $t == 0) {
-    $t = $$cfg{"notifiable_status_default"};
+    $t = $$cfg{"notifiable_statuses_default"};
   }
 
   if (!defined $$t->get($status)) {
