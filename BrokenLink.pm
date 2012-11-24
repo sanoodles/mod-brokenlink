@@ -158,7 +158,7 @@ Fills a (dis)trusted notification object with given data
 =cut
 sub nf_common_create {
   my ($res, $id, $time, $qtt, $status, $from, $to) = @_;
-  test("nf_common_create");
+  test("nf_common_create ini");
 
   $$res{"id"} = $id;
 
@@ -173,7 +173,7 @@ sub nf_common_create {
   $$res{"to"} = defined $to ? $to : "";
 
   test("status: $status from: " . $from->as_string . " to: " . $to->as_string);
-  test("nf_common_create return");
+  test("nf_common_create end");
 }
 
 =pod
@@ -181,6 +181,7 @@ Creates a (dis)trusted notification object from raw data
 =cut
 sub nf_create {
   my ($id, $time, $qtt, $trust, $status, $from, $to) = @_;
+  test("nf_create ini");
 
   my %res;
 
@@ -188,7 +189,7 @@ sub nf_create {
 
   nf_common_create(\%res, $id, $time, $qtt, $status, $from, $to);
 
-  test("nf_create return");
+  test("nf_create end");
   return \%res;
 }
 
@@ -200,12 +201,14 @@ cmd_able_status
 cmds[]
 
 Not ported yet because don't recall exactly what they did, and don't know how to port them yet.
+
 =cut
 
 # Socket connection
 # @see http://www.thegeekstuff.com/2010/07/perl-tcp-udp-socket-programming/
 sub socket_open {
   my ($r, $sock, $hostname, $port) = @_;
+  test("socket_open ini");
 
   $| = 1;
 
@@ -216,6 +219,7 @@ sub socket_open {
     # Timeout => DEF_SOCK_TIMEOUT
   ) or die "ERROR in Socket Creation : $!\n";
 
+  test("socket_open end");
   return MBL_TRUE;
 }
 
@@ -226,6 +230,7 @@ Creates a notification object from the data of the current request
 =cut
 sub nf_pack {
   my ($r) = @_;
+  test("nf_pack ini");
 
   my $notification;
 
@@ -247,7 +252,7 @@ sub nf_pack {
 
   $notification = nf_create(0, $time, 1, MBL_TRUE, $status, $from, $to);
 
-  test("nf_pack return");
+  test("nf_pack end");
   return $notification;
 }
 
@@ -290,7 +295,7 @@ Composes a generic HTTP GET request from discrete fields.
 =cut
 sub http_get_compose {
   my ($uri, $host, $referer, $user_agent) = @_;
-  test("http_get_compose");
+  test("http_get_compose ini");
 
   my $res = "GET $uri HTTP/1.1" . CRLF_STR . 
             "Host: $host" . CRLF_STR . 
@@ -298,7 +303,7 @@ sub http_get_compose {
             "User-Agent: $user_agent" . CRLF_STR .
             CRLF_STR;
 
-  test("http_get_compose return");
+  test("http_get_compose end");
   return $res;
 }
 
@@ -317,6 +322,7 @@ User-Agent: MBL_USER_AGENT
 =cut
 sub nf_xraw2req {
   my $nf = shift;
+  test("nf_xraw2req ini");
 
   my $resource = nf_xraw2uri($nf);
 
@@ -329,7 +335,7 @@ sub nf_xraw2req {
 
   my $res = http_get_compose($resource, $host, $referer, $user_agent);
 
-  test("nf_xraw2req return");
+  test("nf_xraw2req end");
   return $res;
 }
 
@@ -339,7 +345,7 @@ Test case: Access to http://localhost/a_non_existent_page.html
 =cut
 sub nf_tx {
   my ($r, $nf) = @_;
-  test("nf_tx");
+  test("nf_tx ini");
 
   my $socket ;
 
@@ -369,7 +375,7 @@ sub nf_tx {
 
   $socket->close();
 
-  test("nf_tx return");
+  test("nf_tx end");
   return MBL_TRUE;
 }
 
@@ -383,7 +389,7 @@ The current design makes no distinction between:
 =cut
 sub is_it_me {
   my ($r, $referer_uri) = @_;
-  test("is_it_me");
+  test("is_it_me ini");
 
   my $res;
 
@@ -432,7 +438,7 @@ http://www.imdb.com/title/tt0242423/quotes#qt0397841
 =cut
 sub able_to {
   my ($r, $to) = @_;
-  test("able_to");
+  test("able_to ini");
 
   my $res;
 
@@ -445,7 +451,7 @@ sub able_to {
   }
 
   test("res: $res");
-  test("able_to return");
+  test("able_to end");
   return $res;
 }
 
@@ -458,7 +464,7 @@ Else
 =cut
 sub able_status {
   my ($r, $status) = @_;
-  test("able_status");
+  test("able_status ini");
 
   my $res;
 
@@ -478,14 +484,14 @@ sub able_status {
   }
 
   test("res: $res");
-  test("able_status return");
+  test("able_status end");
   return $res;
 }
 
 # @return Whether the referer of the ongoing request is potentially notifiable or not.
 sub able_from {
   my ($r, $from) = @_;
-  test("able_from");
+  test("able_from ini");
   
   my $res;
 
@@ -499,14 +505,14 @@ sub able_from {
     return MBL_FALSE;
   }
 
-  test("able_from return");
+  test("able_from end");
   return MBL_TRUE;
 }
 
 # @return Whether the ongoing request is nofitiable or not.
 sub nf_txable {
   my ($r, $nf) = @_;
-  test("nf_txable");
+  test("nf_txable ini");
 
   my $res;
 
@@ -525,13 +531,13 @@ sub nf_txable {
 
 sub nfy_if_needed {
   my ($r, $n) = @_;
-  test("nfy_if_needed");
+  test("nfy_if_needed ini");
 
   if (nf_txable($r, $n) == MBL_TRUE) {
     nf_tx($r, $n);
   }
 
-  test("nfy_if_needed return");
+  test("nfy_if_needed end");
 }
 
 sub handler {
@@ -544,7 +550,7 @@ sub handler {
     nfy_if_needed($r, $n);
   }
   
-  test("handler return");
+  test("handler end ----------------");
   return Apache2::Const::OK;
 }
 1;
