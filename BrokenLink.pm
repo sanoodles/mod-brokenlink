@@ -19,6 +19,7 @@ https://svn.apache.org/repos/asf/spamassassin/branches/check_plugin/spamd-apache
 http://perl.apache.org/docs/2.0/user/handlers/http.html#PerlLogHandler
 http://search.cpan.org/~stas/DocSet-0.19/examples/site/src/start/tips/logging.pod
 http://perl.apache.org/docs/2.0/user/config/custom.html#Creating_and_Using_Custom_Configuration_Directives
+https://metacpan.org/search?q=Apache%3A%3A
 
 This file contains:
 1, Includes
