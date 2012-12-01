@@ -142,30 +142,6 @@ sub nftest {
   test($$nf{status});
 }
 
-# Prints one row of an APR table to the STDERR.
-sub tabletest_row {
-  my ($rec, $key, $value) = @_;
-
-  test("tabletest_row");
-  test("key: $key");
-  test("value: $value");
-
-  return 1; # return 1 so the iteration continues
-}
-
-sub tabletest {
-  test("tabletest");
-  my $t = shift;
-
-  $t->do(tabletest_row);
-}
-
-use Dumpvalue;
-our $dumper = Dumpvalue->new;
-# $dumper->set(globPrint => 1);
-#$dumper->dumpValue(\*::);
-#$dumper->dumpvars('main');
-# my $dump = $dumper->stringify($some_value);
 
 
 
