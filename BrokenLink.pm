@@ -11,27 +11,46 @@ Perl native or some CPAN module.
 
 Technically, is a mod_perl handler.
 
-Examples of mod_perl handlers:
+
+
+=head2 Examples of mod_perl handlers
+
+=head3 Basic
 http://perl.apache.org/docs/2.0/user/handlers/intro.html
 http://modperlbook.org/code/chapters/ch25-next_generation/Book/Eliza2.pm
-http://cpan-search.sourceforge.net/Apache2/DocServer.pm.html
-https://svn.apache.org/repos/asf/spamassassin/branches/check_plugin/spamd-apache2/lib/Mail/SpamAssassin/Spamd/Apache2/Config.pm
+
+=head3 With logging
 http://perl.apache.org/docs/2.0/user/handlers/http.html#PerlLogHandler
 http://search.cpan.org/~stas/DocSet-0.19/examples/site/src/start/tips/logging.pod
+
+=head3 Configuration manual
 http://perl.apache.org/docs/2.0/user/config/custom.html#Creating_and_Using_Custom_Configuration_Directives
-https://metacpan.org/search?q=Apache%3A%3A
+
+=head3 With configuration
+https://www.google.com/search?q=metacpan+%22package+Apache2:%3A%22+get_config
+http://cpan-search.sourceforge.net/Apache2/DocServer.pm.html
+
+=head4 With configuration with arrays
+https://svn.apache.org/repos/asf/spamassassin/branches/check_plugin/spamd-apache2/lib/Mail/SpamAssassin/Spamd/Apache2/AclIP.pm
+
+
 
 This file contains:
 1. Includes
 2. Constants
-3. Directives
-4. Testing helpers
+3. Testing helpers
+4. Configuration
 5. The meat
+
 =cut
 
 
 
+
+
 package BrokenLink;
+
+
 
 
 
@@ -40,12 +59,16 @@ use warnings;
 
 
 
+
+
 =pod
 1. Includes
 =cut
+
 use POSIX qw/strftime/;
 use IO::Socket::INET;
 use URI;
+use URI::Escape;
 use Apache2::CmdParms ();
 use Apache2::Const -compile => qw(OK RSRC_CONF);
 use Apache2::Directive ();
@@ -56,6 +79,8 @@ use Apache2::ServerUtil ();
 use APR::Const ();
 use APR::Socket ();
 use APR::Table ();
+
+
 
 
 
@@ -88,33 +113,10 @@ use constant {
 
 
 
-=pod
-3. Directives
-=cut
-
-# @see http://perl.apache.org/docs/2.0/user/config/custom.html#Directive_Scope_Definition_Constants
-my @directives = (
-  {
-    name => "NotifiableStatus",
-    # req_override => Apache2::Const::RSRC_CONF,
-  },
-);
-Apache2::Module::add(__PACKAGE__, \@directives);
-
-# @see perl.apache.org/docs/2.0/user/config/custom.html#C_args_how_
-sub NotifiableStatus {
-  my ($self, $parms, $arg) = @_;
-  test("NotifiableStatus ini");
-  
-  test($arg);  
-
-  test("NotifiableStatus end"); 
-}
-
 
 
 =pod
-4. Testing helpers
+3. Testing helpers
 =cut
 
 # @return Current datetime in TIME_FORMAT. eg: "2009-06-15 19:58:13".
@@ -134,10 +136,10 @@ sub test {
 sub nftest {
   my $nf = shift;
   test("nftest");
-  test($$nf{"time"});
-  test($$nf{"from"}->as_string);
-  test($$nf{"to"}->as_string);
-  test($$nf{"status"});
+  test($$nf{time});
+  test($$nf{from}->as_string);
+  test($$nf{to}->as_string);
+  test($$nf{status});
 }
 
 # Prints one row of an APR table to the STDERR.
@@ -158,11 +160,49 @@ sub tabletest {
   $t->do(tabletest_row);
 }
 
+use Dumpvalue;
+our $dumper = Dumpvalue->new;
+# $dumper->set(globPrint => 1);
+#$dumper->dumpValue(\*::);
+#$dumper->dumpvars('main');
+# my $dump = $dumper->stringify($some_value);
+
+
 
 
 =pod
-5. The meat
+4. Configuration
 =cut
+
+our $notifiable_statuses_default = [
+  300,
+  301,
+  400,
+  403,
+  404,
+  410,
+  414,
+  415,
+  501,
+  502,
+  503,
+  504,
+  505,
+];
+
+# @see http://perl.apache.org/docs/2.0/user/config/custom.html#Directive_Scope_Definition_Constants
+my @directives = (
+  {
+    name => "NotifiableStatus",
+    # req_override => Apache2::Const::RSRC_CONF,
+  },
+);
+Apache2::Module::add(__PACKAGE__, \@directives);
+
+# @see perl.apache.org/docs/2.0/user/config/custom.html#C_args_how_
+sub NotifiableStatus { 
+  push_val('notifiable_statuses', @_);
+}
 
 # @return Module config.
 sub config_get {
@@ -170,6 +210,68 @@ sub config_get {
   my $cfg = Apache2::Module::get_config(__PACKAGE__, $r->server);
   return $cfg;
 }
+
+# @see http://perl.apache.org/docs/2.0/user/config/custom.html#C_SERVER_CREATE_
+sub SERVER_CREATE {
+  test("SERVER_CREATE");
+  my ($class, $parms) = @_;
+
+  test("class: " . $class);
+
+  return bless { notifiable_statuses => [] }, $class;
+}
+
+=pod
+@see SERVER_MERGE, push_val, and merge are taken from
+http://perl.apache.org/docs/2.0/user/config/custom.html#Examples
+=cut
+sub SERVER_MERGE { 
+  test("SERVER_MERGE");
+
+  merge(@_) 
+}
+
+sub push_val {
+  test("push_val ini");
+  my ($key, $self, $parms, $arg) = @_; 
+
+  test("key: " . $key . ", arg: " . $arg);
+
+  push @{ $self->{$key} }, $arg;
+  unless ($parms->path) {
+      my $srv_cfg = Apache2::Module::get_config($self, $parms->server);
+      push @{ $srv_cfg->{$key} }, $arg;
+  }
+
+  test("push_val end");
+}
+
+sub merge {
+  test("merge ini");
+  my ($base, $add) = @_;
+  my %mrg = {};
+
+  # code to merge %$base and %$add
+  for my $key (keys %$base, keys %$add) {
+    next if exists ($mrg{$key});
+    if ($key eq 'notifiable_statuses') {
+      push @{ $mrg{$key} },
+          @{ $base->{$key} || [] }, @{ $add->{$key} || [] };
+    }
+  }
+
+
+  test("merge end");
+  return bless \%mrg, ref($base);
+}
+
+
+
+
+
+=pod
+5. The meat
+=cut
 
 =pod
 Fills a (dis)trusted notification object with given data
@@ -184,19 +286,12 @@ Fills a (dis)trusted notification object with given data
 sub nf_common_create {
   my ($res, $id, $time, $qtt, $status, $from, $to) = @_;
   test("nf_common_create ini");
-
-  $$res{"id"} = $id;
-
-  $$res{"time"} = defined $time ? $time : "";
-  
-  $$res{"qtt"} = $qtt;
-
-  $$res{"status"} = $status;
-
-  $$res{"from"} = defined $from ? $from : "";
-
-  $$res{"to"} = defined $to ? $to : "";
-
+  $$res{id} = $id;
+  $$res{time} = defined $time ? $time : "";
+  $$res{qtt} = $qtt;
+  $$res{status} = $status;
+  $$res{from} = defined $from ? $from : "";
+  $$res{to} = defined $to ? $to : "";
   test("status: $status from: " . $from->as_string . " to: " . $to->as_string);
   test("nf_common_create end");
 }
@@ -207,26 +302,18 @@ Creates a (dis)trusted notification object from raw data
 sub nf_create {
   my ($id, $time, $qtt, $trust, $status, $from, $to) = @_;
   test("nf_create ini");
-
   my %res;
-
-  $res{"trust"} = $trust;
-
+  $res{trust} = $trust;
   nf_common_create(\%res, $id, $time, $qtt, $status, $from, $to);
-
   test("nf_create end");
   return \%res;
 }
 
 =pod
 Here were:
-config_server_create
-config_server_merge
 cmd_able_status
 cmds[]
-
 Not ported yet because don't recall exactly what they did, and don't know how to port them yet.
-
 =cut
 
 # Socket connection
@@ -303,9 +390,9 @@ sub nf_xraw2uri {
   my $nf = shift;
 
   my $res = MBL_NOTIFY_FILENAME . 
-      "?from=" . urlencode($$nf{"from"}->as_string) . 
-      "&status=" . $$nf{"status"} . 
-      "&to=" . urlencode($$nf{"to"}->as_string);
+      "?from=" . urlencode($$nf{from}->as_string) . 
+      "&status=" . $$nf{status} . 
+      "&to=" . urlencode($$nf{to}->as_string);
 
   return $res;
 }
@@ -350,14 +437,9 @@ sub nf_xraw2req {
   test("nf_xraw2req ini");
 
   my $resource = nf_xraw2uri($nf);
-
   my $host = $$nf{from}->host;
-  # TODO test if it works without quotes, and do the same in the whole code
-
-  my $referer = $$nf{"to"}->as_string;
-
+  my $referer = $$nf{to}->as_string;
   my $user_agent = MBL_USER_AGENT;
-
   my $res = http_get_compose($resource, $host, $referer, $user_agent);
 
   test("nf_xraw2req end");
@@ -489,20 +571,26 @@ Else
 =cut
 sub able_status {
   my ($r, $status) = @_;
-  test("able_status ini");
+  test("able_status ini (status: $status)");
 
   my $res;
-
   my $cfg = config_get($r);
+  my $t = $$cfg{notifiable_statuses} || [];
+  test("scalar t: " . scalar @$t);
 
-  my $t = $$cfg{"notifiable_statuses"};
+  if (scalar(@$t) == 0) {
+    test("scalar t was zero");
+ 
+    $t = $notifiable_statuses_default;;
+ 
+    test("scalar t now: " . scalar @$t);
+ }
 
-  # I totally
-  if (length $t == 0) {
-    $t = $$cfg{"notifiable_statuses_default"};
+  foreach my $elem (@$t) {
+    test("elem: " . $elem);
   }
 
-  if (!defined $$t->get($status)) {
+  if (grep /$status/, @$t) {
     $res = MBL_TRUE;
   } else {
     $res = MBL_FALSE;
@@ -541,9 +629,9 @@ sub nf_txable {
 
   my $res;
 
-  if (able_from($r, $$nf{"from"}) == MBL_TRUE &&
-      able_status($r, $$nf{"status"}) == MBL_TRUE &&
-      able_to($r, $$nf{"to"}) == MBL_TRUE) {
+  if (able_from($r, $$nf{from}) == MBL_TRUE &&
+      able_status($r, $$nf{status}) == MBL_TRUE &&
+      able_to($r, $$nf{to}) == MBL_TRUE) {
     $res = MBL_TRUE
   } else {
     $res = MBL_FALSE;
