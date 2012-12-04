@@ -300,7 +300,7 @@ sub socket_open {
 
   $| = 1;
 
-  $sock = new IO::Socket::INET (
+  $_[1] = new IO::Socket::INET (
     PeerHost => $hostname,
     PeerPort => $port,
     Proto => 'tcp',
@@ -430,7 +430,7 @@ sub nf_tx {
   my ($r, $nf) = @_;
   test("nf_tx ini");
 
-  my $socket ;
+  my $socket;
 
   my $referer_hostname = $$nf{from}->host;
   test("referer_hostname: $referer_hostname");
@@ -447,11 +447,11 @@ sub nf_tx {
 
   my $len = length $req_header;
 
-  my $ret = $socket->send($req_header);
+  my $ret = print $socket $req_header;
   test("socket->send returned: $ret");
 
   test("**** SENDING NOTIFICATION ****");
-  if ($ret == 0) { # assuming 0 is send error
+  if (!$ret) {
     test("socket->send returned an error.");
     return MBL_FALSE;
   }
