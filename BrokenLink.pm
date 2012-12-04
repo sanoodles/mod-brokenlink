@@ -307,7 +307,7 @@ sub socket_open {
     # Timeout => DEF_SOCK_TIMEOUT
   ) or die "ERROR in Socket Creation : $!\n";
 
-  test("socket_open end");
+  test("socket_open end: " . MBL_TRUE);
   return MBL_TRUE;
 }
 
@@ -458,7 +458,7 @@ sub nf_tx {
 
   $socket->close();
 
-  test("nf_tx end");
+  test("nf_tx end: " . MBL_TRUE);
   return MBL_TRUE;
 }
 
@@ -533,8 +533,7 @@ sub able_to {
     $res = MBL_TRUE;
   }
 
-  test("res: $res");
-  test("able_to end");
+  test("able_to end: $res");
   return $res;
 }
 
@@ -572,8 +571,7 @@ sub able_status {
     $res = MBL_FALSE;
   }
 
-  test("res: $res");
-  test("able_status end");
+  test("able_status end: $res");
   return $res;
 }
 
@@ -594,7 +592,7 @@ sub able_from {
     return MBL_FALSE;
   }
 
-  test("able_from end");
+  test("able_from end: " . MBL_TRUE);
   return MBL_TRUE;
 }
 
@@ -613,8 +611,7 @@ sub nf_txable {
     $res = MBL_FALSE;
   }
 
-  test("res: $res");
-  test("nf_txable return");
+  test("nf_txable return: $res");
   return $res;
 }
 
