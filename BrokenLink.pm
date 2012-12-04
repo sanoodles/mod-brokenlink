@@ -42,6 +42,8 @@ This file contains:
 4. Configuration
 5. The meat
 
+TODO: test configuration merge.
+
 =cut
 
 
