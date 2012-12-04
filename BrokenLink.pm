@@ -467,10 +467,10 @@ sub nf_tx {
 
   my $len = length $req_header;
 
+  test("**** SENDING NOTIFICATION ****");
   my $ret = print $socket $req_header;
   test("socket->send returned: $ret");
 
-  test("**** SENDING NOTIFICATION ****");
   if (!$ret) {
     test("socket->send returned an error.");
     return MBL_FALSE;
