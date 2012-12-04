@@ -286,14 +286,12 @@ sub nf_create {
 }
 
 =pod
-Here were:
-cmd_able_status
-cmds[]
-Not ported yet because don't recall exactly what they did, and don't know how to port them yet.
+Socket connection
+@param sock output parameter. A new IO:Socket::INET socket to $hostname:$port.
+@param hostname
+@param port
+@see http://www.thegeekstuff.com/2010/07/perl-tcp-udp-socket-programming/
 =cut
-
-# Socket connection
-# @see http://www.thegeekstuff.com/2010/07/perl-tcp-udp-socket-programming/
 sub socket_open {
   my ($r, $sock, $hostname, $port) = @_;
   test("socket_open ini");
@@ -324,12 +322,19 @@ sub nf_pack {
 
   my $time = "";
 
+  test("r->headers_in->get(Referer): " . $r->headers_in->get("Referer"));
   my $from = URI->new($r->headers_in->get("Referer"));
 
   if (!defined $from || $from eq "") {
     test("Void referer. Can not pack notification.");
     return undef;
   }
+
+  if (!$from->can('host')) {
+    test("Referer has no hostname. Can not pack notification.");
+    return undef;
+  }
+
   test("from: " . $from->as_string);
 
   my $to = URI->new($r->unparsed_uri);
