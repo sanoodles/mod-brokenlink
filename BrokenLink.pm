@@ -142,6 +142,17 @@ sub nftest {
   test($$nf{status});
 }
 
+sub tabletest_row {
+  my ($key, $value) = @_;
+  test("$key: $value");
+  return 1;
+}
+
+sub tabletest {
+  test("tabletest");
+  shift->do("tabletest_row");
+}
+
 
 
 
@@ -317,24 +328,28 @@ Creates a notification object from the data of the current request
 sub nf_pack {
   my ($r) = @_;
   test("nf_pack ini");
+  tabletest($r->headers_in);
 
   my $notification;
 
   my $time = "";
 
-  test("r->headers_in->get(Referer): " . $r->headers_in->get("Referer"));
-  my $from = URI->new($r->headers_in->get("Referer"));
+  my $referer = $r->headers_in->get("Referer");
 
-  if (!defined $from || $from eq "") {
+  if (!defined $referer || $referer eq "") {
     test("Void referer. Can not pack notification.");
     return undef;
   }
 
-  if (!$from->can('host')) {
-    test("Referer has no hostname. Can not pack notification.");
-    return undef;
-  }
+  my $from = URI->new($referer);
 
+  # In some scenarios, not yet identified, the "Referer" header comes
+  # as a partial URI. In such cases, we take the "Host" header as 
+  # prefix for the "Referer" field.
+  if (!$from->can('host')) {
+    $referer = $r->headers_in->get("Host") . $referer;
+    $from = URI->new($referer);
+  }
   test("from: " . $from->as_string);
 
   my $to = URI->new($r->unparsed_uri);
