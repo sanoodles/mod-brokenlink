@@ -343,11 +343,12 @@ sub nf_pack {
 
   my $from = URI->new($referer);
 
-  # In some scenarios, not yet identified, the "Referer" header comes
-  # as a partial URI. In such cases, we take the "Host" header as 
-  # prefix for the "Referer" field.
+# The Referer could be an absolute URI, but also a partial URI, or any thing.
+# If the Referer header is a partial URI, it will have no protocol nor host.
+# In such cases we assume that the protocol is "http" and the host 
+#     is the Host header (a reflexive notification).
   if (!$from->can('host')) {
-    $referer = $r->headers_in->get("Host") . $referer;
+    $referer = "http://" . $r->headers_in->get("Host") . $referer;
     $from = URI->new($referer);
   }
   test("from: " . $from->as_string);
@@ -548,6 +549,7 @@ sub able_to {
   my $to_filename = substr $to, 0, length MBL_NOTIFY_FILENAME;
 
   if ($to_filename eq MBL_NOTIFY_FILENAME) {
+    test("Sweet-dude dialog responsibly avoided.");
     $res = MBL_FALSE;
   } else {
     $res = MBL_TRUE;
