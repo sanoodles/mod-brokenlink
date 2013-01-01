@@ -11,6 +11,11 @@ Perl native or some CPAN module.
 
 Technically, is a mod_perl handler.
 
+The purpose of this software is helping to deal with the
+increasing number of links to pages with errors, as shown
+in the stats of
+http://httparchive.org/trends.php?s=All&minlabel=Nov+15+2010&maxlabel=Dec+15+2012
+
 
 
 =head2 Examples of mod_perl handlers
@@ -217,7 +222,7 @@ http://perl.apache.org/docs/2.0/user/config/custom.html#Examples
 sub SERVER_MERGE { 
   test("SERVER_MERGE");
 
-  merge(@_) 
+  merge(@_);
 }
 
 sub push_val {
