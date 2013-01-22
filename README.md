@@ -30,3 +30,4 @@ But you can override this list by declaring your own list of notifiable statuses
     NotifiableStatus 410
 
 local change
+.
