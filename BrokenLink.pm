@@ -108,7 +108,7 @@ use constant {
 
 # debugging
 use constant {
-  MBL_DEBUG_MODE => MBL_TRUE
+  MBL_DEBUG_MODE => MBL_FALSE
 };
 
 # notification sending
