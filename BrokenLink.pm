@@ -544,7 +544,7 @@ sub is_it_me {
 @return Whether the target of the ongoing request is potentially notifiable or not.
 Since the notifications are performed as an ordinary access to a non-existent
 file, receiving a notification would cause in turn to send back a 
-notification and a sweet-dude conversation wwould start.
+notification and a sweet-dude conversation would start.
 http://www.imdb.com/title/tt0242423/quotes#qt0397841
 =cut
 sub able_to {
