@@ -6,6 +6,10 @@ To use it, add to apache2.conf (or httpd.conf):
     PerlLogHandler BrokenLink
     Options +ExecCGI
 
+And restart Apacheº:
+
+    sudo service apache2 graceful
+
 The default list of notifiable statuses is: 
 
 * 300

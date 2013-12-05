@@ -588,7 +588,7 @@ sub able_status {
     $t = $notifiable_statuses_default;;
  
     test("scalar t now: " . scalar @$t);
- }
+  }
 
   foreach my $elem (@$t) {
     test("elem: " . $elem);
