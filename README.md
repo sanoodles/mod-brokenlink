@@ -6,7 +6,7 @@ To use it, add to apache2.conf (or httpd.conf):
     PerlLogHandler BrokenLink
     Options +ExecCGI
 
-And restart Apacheº:
+And restart Apache:
 
     sudo service apache2 graceful
 
