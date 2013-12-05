@@ -544,7 +544,7 @@ sub is_it_me {
 @return Whether the target of the ongoing request is potentially notifiable or not.
 Since the notifications are performed as an ordinary access to a non-existent
 file, receiving a notification would cause in turn to send back a 
-notification and a sweet-dude dialog would start.
+notification and a sweet-dude conversation wwould start.
 http://www.imdb.com/title/tt0242423/quotes#qt0397841
 =cut
 sub able_to {
@@ -556,7 +556,7 @@ sub able_to {
   my $to_filename = substr $to, 0, length MBL_NOTIFY_FILENAME;
 
   if ($to_filename eq MBL_NOTIFY_FILENAME) {
-    test("Sweet-dude dialog responsibly avoided.");
+    test("A mod_brokenlink notification was received.");
     $res = MBL_FALSE;
   } else {
     $res = MBL_TRUE;
@@ -617,7 +617,7 @@ sub able_from {
   }
 
   if (MBL_NOTIFY_REFLEXIVE == MBL_FALSE && is_it_me($r, $from)) {
-    test("Reflexive notification sending is NOT potentially notifiable");
+    test("Reflexive notification sending is NOT potentially notifiable because MBL_NOTIFY_REFLEXIVE constant is set to MBL_FALSE.");
     return MBL_FALSE;
   }
 
